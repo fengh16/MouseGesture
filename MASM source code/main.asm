@@ -166,10 +166,10 @@ DeleteKey       BYTE    "Delete", 0
 
 .code
 
-JudgeTrack      proc  uses ebx, xDiff: SDWORD, yDiff: SDWORD
-                local xChange: SDWORD, yChange: SDWORD
+JudgeTrack      proc  uses ebx, xDiff: DWORD, yDiff: DWORD
+                local xChange: DWORD, yChange: DWORD
                 
-                .if xDiff > 0
+                .if xDiff < 80000000h
                         mov eax, xDiff
                         mov xChange, eax
                 .else
@@ -177,7 +177,7 @@ JudgeTrack      proc  uses ebx, xDiff: SDWORD, yDiff: SDWORD
                         neg eax
                         mov xChange, eax
                 .endif
-                .if yDiff > 0
+                .if yDiff < 80000000h
                         mov eax, yDiff
                         mov yChange, eax
                 .else
@@ -190,23 +190,23 @@ JudgeTrack      proc  uses ebx, xDiff: SDWORD, yDiff: SDWORD
                 mov ebx, yChange
                 sal ebx, 1
                 .if yChange < eax && xChange < ebx
-                        .if xDiff > 0 && yDiff > 0
+                        .if xDiff < 80000000h && yDiff < 80000000h 
                                 mov eax, GestureRightDown
-                        .elseif xDiff > 0 && yDiff < 0
+                        .elseif xDiff < 80000000h
                                 mov eax, GestureRightUp
-                        .elseif xDiff < 0 && yDiff > 0
+                        .elseif yDiff < 80000000h
                                 mov eax, GestureLeftDown
                         .else
                                 mov eax, GestureLeftUp
                         .endif
                 .elseif xChange >= ebx
-                        .if xDiff > 0
+                        .if xDiff < 80000000h
                                 mov eax, GestureRight
                         .else 
                                 mov eax, GestureLeft
                         .endif
                 .else
-                        .if yDiff > 0
+                        .if yDiff < 80000000h
                                 mov eax, GestureDown
                         .else 
                                 mov eax, GestureUp
@@ -218,7 +218,7 @@ JudgeTrack      endp
 MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                 local   x:SDWORD, y:SDWORD
 
-                .if     nCode >= 0
+                .if     nCode < 80000000h
 
                         .if wParam == WM_LBUTTONDOWN
                                 mov tracking, 0
@@ -249,16 +249,20 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                                 mov edx, eax
                                 imul edx
                                 add esi, eax
-                                .if esi > 10000
+                                .if esi > 10000 && esi < 80000000h
                                         mov ebx, x
                                         sub ebx, lastX
                                         mov edx, y
                                         sub edx, lastY
                                         invoke JudgeTrack, ebx, edx
                                         .if eax != lastTrack
-                                                mov esi, trackNum
-                                                mov tracks[esi], eax
-                                                mov lastTrack, eax
+                                                push eax
+                                                mov eax, trackNum
+                                                mov esi, 4
+                                                mul esi
+                                                pop esi
+                                                mov tracks[eax], esi
+                                                mov lastTrack, esi
                                                 inc trackNum
                                                 .if trackNum > 3
                                                         mov trackNum, -1
@@ -287,7 +291,7 @@ KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                 mov     eax, lParam
                 mov     p, eax
                 
-                .if     nCode >= 0 && nowKeyInputIndex != -1 && wParam == WM_KEYDOWN
+                .if     nCode < 80000000h && nowKeyInputIndex != -1 && wParam == WM_KEYDOWN
                         mov     edx, p
                         assume  edx: ptr KBDLLHOOKSTRUCT
                         mov     eax, [edx].vkCode
