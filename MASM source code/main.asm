@@ -12,7 +12,8 @@ includelib      kernel32.lib
 include         msvcrt.inc
 includelib      msvcrt.lib
 include         action.inc
-includelib      action.lib
+include         shell32.inc
+includelib      shell32.lib
 
 .data
 hgWindow        DWORD   ?
@@ -33,21 +34,29 @@ itemSelected    BYTE    "Selected operation No.%d for gesture No.%d", 0
 selectedDetail  BYTE    "已变更操作“%s”为执行“%s”", 0
 
 numGestures     =       8
-numOperations   =       22
+numOperations   =       21
 operationIndexes    DWORD   0, 1, 2, 3, 4, 5, 6, 7
 saveButton      DWORD   numGestures dup(?)
 hWndComboBox    DWORD   numGestures dup(?)
 operationKey    DWORD   numGestures dup(0)
 nowKeyInputIndex    DWORD   -1
 
-tracking        SDWORD  0
+tracking        DWORD   0
 tracks          DWORD   10 dup(?)
-trackNum        SDWORD   0
-lastTrack       SDWORD  -1
-lastX           SDWORD  0
-lastY           SDWORD  0
-oldX            SDWORD  -1
-oldY            SDWORD  -1
+trackNum        DWORD   0
+lastTrack       DWORD   -1
+lastX           DWORD   0
+lastY           DWORD   0
+oldX            DWORD   -1
+oldY            DWORD   -1
+
+; action list
+ActionList      DWORD   OFFSET copy, OFFSET paste, OFFSET Win, OFFSET AltTab, OFFSET WinTab,
+                        OFFSET WinD, OFFSET WinUp, OFFSET WinDown, OFFSET WinLeft, OFFSET WinRight,
+                        OFFSET AltLeft, OFFSET AltRight, OFFSET mute2, OFFSET soundUp2, OFFSET soundDown2,
+                        OFFSET ControlPanel, OFFSET TaskManager, OFFSET NotePad, OFFSET Calculator, OFFSET WebSearchAuto,
+                        OFFSET WinD ; need to do the acc keys
+; end of action list
 
 .const
 
@@ -79,14 +88,13 @@ Planets16       BYTE    '任务管理器', 0
 Planets17       BYTE    '记事本', 0
 Planets18       BYTE    '计算器', 0
 Planets19       BYTE    '默认浏览器中搜索', 0
-Planets20       BYTE    '默认浏览器中搜索2', 0
-Planets21       BYTE    '自定义按键', 0
+Planets20       BYTE    '自定义按键', 0
 
 Planets         DWORD   Planets00, Planets01, Planets02, Planets03, Planets04,
                         Planets05, Planets06, Planets07, Planets08, Planets09,
                         Planets10, Planets11, Planets12, Planets13, Planets14,
                         Planets15, Planets16, Planets17, Planets18, Planets19,
-                        Planets20, Planets21
+                        Planets20
 
 GestureNames00  BYTE    '左划', 0
 GestureNames01  BYTE    '右划', 0
@@ -164,7 +172,293 @@ TabKey          BYTE    "Tab", 0
 BackSpaceKey    BYTE    "BackSpace", 0
 DeleteKey       BYTE    "Delete", 0
 
+arg_ControlPanel_1 BYTE "control",0
+arg_TaskManager_1 BYTE "open",0
+arg_TaskManager_2 BYTE "taskmgr",0
+arg_TaskManager_3 BYTE 0
+arg_NotePad_1 BYTE "notepad",0
+arg_Calculator_1 BYTE "calc",0
+arg_WebSearchText_1 BYTE "%s%s",0
+arg_WebSearchText_2 BYTE "https://www.baidu.com/s?wd=",0
+arg_WebSearchText_3 BYTE "open",0
+arg_WebSearchText_4 BYTE 0
+arg_WebSearchText_url BYTE 0
+
 .code
+
+; ==========================================================
+OneKeyAction PROC STDCALL,
+    key:BYTE, 
+    dwFlags:DWORD
+; requires: key to invoke and dwFlags
+;===========================================================
+    invoke keybd_event, key, 0, dwFlags, 0
+    mov eax, dwFlags
+    or eax, KEYEVENTF_KEYUP
+	invoke keybd_event, key, 0, eax , 0
+    ret
+OneKeyAction ENDP
+
+
+; ==========================================================
+TwoKeysAction PROC STDCALL,
+    key1:BYTE, 
+    dwFlags1:DWORD,
+    key2:BYTE, 
+    dwFlags2:DWORD
+; requires: two keys key1 and key2 and their dwFlags
+; ==========================================================
+    invoke keybd_event, key1, 0, dwFlags1, 0
+    invoke keybd_event, key2, 0, dwFlags2, 0
+    invoke Sleep, KEYDOWNTIME
+    mov eax, dwFlags1
+    or eax, KEYEVENTF_KEYUP
+    invoke keybd_event, key1, 0, eax, 0
+    mov eax, dwFlags2
+    or eax, KEYEVENTF_KEYUP
+	invoke keybd_event, key2, 0, eax, 0
+    ret
+TwoKeysAction ENDP 
+
+
+; ==========================================================
+copy PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_CONTROL, 0, 43h, 0
+    ret
+copy ENDP
+
+
+; ==========================================================
+paste PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_CONTROL, 0, 56h, 0
+    ret
+paste ENDP
+
+
+; ==========================================================
+Win PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke OneKeyAction, VK_LWIN, 0
+    ret
+Win ENDP
+
+
+; ==========================================================
+AltTab PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_MENU, 0, VK_TAB, 0
+    ret
+AltTab ENDP
+
+
+; ==========================================================
+WinTab PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_LWIN, 0, VK_TAB, 0
+    ret
+WinTab ENDP
+
+
+; ==========================================================
+WinD PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_LWIN, 0, 44h, 0
+    ret
+WinD ENDP
+
+
+; ==========================================================
+WinUp PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_LWIN, 0, VK_UP, 0
+    ret
+WinUp ENDP
+
+
+; ==========================================================
+WinDown PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_LWIN, 0, VK_DOWN, 0
+    ret
+WinDown ENDP
+
+
+; ==========================================================
+WinLeft PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_LWIN, 0, VK_LEFT, 0
+    ret
+WinLeft ENDP
+
+
+; ==========================================================
+WinRight PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_LWIN, 0, VK_RIGHT, 0
+    ret
+WinRight ENDP
+
+
+; ==========================================================
+AltLeft PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_MENU, 0, VK_LEFT, 0
+    ret
+AltLeft ENDP
+
+
+; ==========================================================
+AltRight PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke TwoKeysAction, VK_MENU, 0, VK_RIGHT, 0
+    ret
+AltRight ENDP
+
+
+; ==========================================================
+mute PROC STDCALL,
+    hgWnd:DWORD
+; requires: hgWnd:HWND
+; ==========================================================
+    invoke SendMessage, hgWnd, WM_APPCOMMAND, 200eb0h, APPCOMMAND_VOLUME_MUTE * 10000h
+    ret
+mute ENDP
+
+
+; ==========================================================
+soundUp PROC STDCALL,
+    hgWnd:DWORD
+; requires: hgWnd:HWND
+; ==========================================================
+    invoke SendMessage, hgWnd, WM_APPCOMMAND, 30292h, APPCOMMAND_VOLUME_UP * 10000h
+    ret
+soundUp ENDP
+
+
+; ==========================================================
+soundDown PROC STDCALL,
+    hgWnd:DWORD
+; requires: hgWnd:HWND
+; ==========================================================
+    invoke SendMessage, hgWnd, WM_APPCOMMAND, 30292h, APPCOMMAND_VOLUME_DOWN * 10000h
+    ret
+soundDown ENDP
+
+
+; ==========================================================
+mute2 PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke SendMessage, hgWindow, WM_APPCOMMAND, 200eb0h, APPCOMMAND_VOLUME_MUTE * 10000h
+    ret
+mute2 ENDP
+
+
+; ==========================================================
+soundUp2 PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke SendMessage, hgWindow, WM_APPCOMMAND, 30292h, APPCOMMAND_VOLUME_UP * 10000h
+    ret
+soundUp2 ENDP
+
+
+; ==========================================================
+soundDown2 PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke SendMessage, hgWindow, WM_APPCOMMAND, 30292h, APPCOMMAND_VOLUME_DOWN * 10000h
+    ret
+soundDown2 ENDP
+
+
+; ==========================================================
+ControlPanel PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke WinExec, offset arg_ControlPanel_1, SW_HIDE
+    ret
+ControlPanel ENDP
+
+
+; ==========================================================
+TaskManager PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke ShellExecuteA, 0, offset arg_TaskManager_1, offset arg_TaskManager_2, offset arg_TaskManager_3, offset arg_TaskManager_3, SW_SHOW
+    ret
+TaskManager ENDP
+
+
+; ==========================================================
+NotePad PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke WinExec, offset arg_NotePad_1, SW_SHOW
+    ret
+NotePad ENDP
+
+
+; ==========================================================
+Calculator PROC STDCALL
+; requires: none
+; ==========================================================
+    invoke WinExec, offset arg_Calculator_1, SW_SHOW
+    ret
+Calculator ENDP
+
+
+; ==========================================================
+WebSearchText PROC STDCALL,
+    text:PTR BYTE
+    LOCAL sz:DWORD
+; requires: none
+; ==========================================================
+    invoke crt_strlen, text
+    mov sz, eax 
+    invoke crt_sprintf, offset arg_WebSearchText_url, offset arg_WebSearchText_1, offset arg_WebSearchText_2, text
+    invoke ShellExecuteA, 0, offset arg_WebSearchText_3, offset arg_WebSearchText_url, offset arg_WebSearchText_4, offset arg_WebSearchText_4, SW_SHOW
+    ret
+WebSearchText ENDP
+
+
+; ==========================================================
+WebSearchAuto PROC STDCALL
+    LOCAL hMem:DWORD, lpStr:PTR BYTE
+; requires: none
+; ==========================================================
+    invoke copy
+    invoke OpenClipboard,0
+    .IF eax != 0
+        invoke GetClipboardData,CF_TEXT
+        mov hMem,eax
+        .IF hMem != 0
+            invoke GlobalLock, hMem
+            mov lpStr,eax
+            .IF lpStr != 0
+                invoke WebSearchText,lpStr
+                invoke GlobalUnlock,hMem
+                invoke EmptyClipboard
+            .ENDIF
+        .ENDIF
+        invoke CloseClipboard
+    .ENDIF
+    ret
+WebSearchAuto ENDP
 
 JudgeTrack      proc  uses ebx, xDiff: DWORD, yDiff: DWORD
                 local xChange: DWORD, yChange: DWORD
@@ -216,18 +510,17 @@ JudgeTrack      proc  uses ebx, xDiff: DWORD, yDiff: DWORD
 JudgeTrack      endp
 
 MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
-                local   x:SDWORD, y:SDWORD
+                local   x: DWORD, y: DWORD
 
                 .if     nCode < 80000000h
 
-                        .if wParam == WM_LBUTTONDOWN
-                                mov tracking, 0
-                        .elseif wParam == WM_LBUTTONUP
-                                mov tracking, 0
-                        .elseif wParam == WM_RBUTTONDOWN
+                        .if wParam == WM_RBUTTONDOWN
                                 mov tracking, 1
                         .elseif wParam == WM_RBUTTONUP
+                                mov tracking, 2
+                        .else
                                 mov tracking, 0
+
                         .endif
                         mov esi, lParam
                         assume esi: PTR MOUSEHOOKSTRUCT
@@ -275,18 +568,25 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                                         mov lastY, eax
                                 .endif
                         .endif
+                        .if     tracking == 2 && trackNum != -1 && trackNum < numOperations
+                                mov     eax, lastTrack
+                                mov     ebx, 4
+                                mul     ebx
+                                mov     eax, operationIndexes[eax]
+                                mul     ebx
+                                call    ActionList[eax]
+                        .endif
                         mov eax, x
                         mov oldX, eax
                         mov eax, y
                         mov oldY, eax             
                 .endif
                 invoke  CallNextHookEx, keyHook, nCode, wParam, lParam
-                mov     eax, 0
                 ret
 MouseProc       endp
 
 KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
-                local   p: PTR KBDLLHOOKSTRUCT, dataIndex: DWORD, pressed: DWORD, nowKeyInputIndexTimes4: DWORD, hWndComboBoxNowKeyInputIndex: DWORD
+                local   p: PTR KBDLLHOOKSTRUCT, dataIndex: DWORD, pressed: DWORD, nowKeyInputIndexTimes4: DWORD
 
                 mov     eax, lParam
                 mov     p, eax
