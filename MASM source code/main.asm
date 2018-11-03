@@ -129,28 +129,26 @@ CtrlPlus        BYTE    "Ctrl+", 0
 
 .code
 
-KeyboardProc2   proc    uses esi, nCode: DWORD, wParam: DWORD, lParam: DWORD
-                local   p: PTR KBDLLHOOKSTRUCT
-                local   dataIndexTimes4: DWORD
-                local   pressed: DWORD
-                local   nowKeyInputIndexTimes4: DWORD
+KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
+                local   p: PTR KBDLLHOOKSTRUCT, dataIndexTimes4: DWORD, pressed: DWORD, nowKeyInputIndexTimes4: DWORD
 
                 mov     eax, lParam
                 mov     p, eax
                 
                 .if     nCode >= 0 && nowKeyInputIndex != -1 && wParam == WM_KEYDOWN
-                        mov     esi, p
-                        ASSUME  esi: ptr KBDLLHOOKSTRUCT
-                        mov     eax, [esi].vkCode
+                        mov     edx, p
+                        assume  edx: ptr KBDLLHOOKSTRUCT
+                        mov     eax, [edx].vkCode
+                        assume  edx: nothing
                         mov     pressed, eax
-
+                        
                         mov     eax, nowKeyInputIndex
                         mov     ebx, 4
                         mul     ebx
                         mov     nowKeyInputIndexTimes4, eax
                         mov     operationKey[eax], 0
                         mov     dataIndexTimes4, 0
-
+                
                         invoke  GetKeyState, VK_CONTROL
                         .if     ah || pressed == VK_CONTROL
                                 mov     eax, nowKeyInputIndexTimes4
@@ -158,7 +156,9 @@ KeyboardProc2   proc    uses esi, nCode: DWORD, wParam: DWORD, lParam: DWORD
                                 or      eax, CONTROL_ADDER
                                 mov     ebx, nowKeyInputIndexTimes4
                                 mov     operationKey[ebx], eax
-                                invoke  crt_sprintf, data + dataIndexTimes4, OFFSET CtrlPlus
+                                mov     eax, OFFSET data
+                                add     eax, dataIndexTimes4
+                                invoke  crt_sprintf, eax, OFFSET CtrlPlus
                                 mov     eax, dataIndexTimes4
                                 add     eax, 5*4
                                 mov     dataIndexTimes4, eax
@@ -168,13 +168,19 @@ KeyboardProc2   proc    uses esi, nCode: DWORD, wParam: DWORD, lParam: DWORD
                                 
                                 mov     eax, nowKeyInputIndexTimes4
                                 mov     edx, hWndComboBox[eax]
+                                push    edx
                                 invoke  SendMessage, edx, CB_DELETESTRING, numOperations - 1, 0
+                                pop     edx
+                                push    edx
                                 invoke  SendMessage, edx, CB_ADDSTRING, 0, OFFSET data
                                 mov     eax, nowKeyInputIndexTimes4
                                 mov     operationIndexes[eax], numOperations - 1
+                                pop     edx
+                                push    edx
                                 invoke  SendMessage, edx, CB_SETCURSEL, numOperations - 1, 0
+                                pop     edx
                         .endif
-
+                
                 .endif
 
                 invoke  CallNextHookEx, keyHook, nCode, wParam, lParam
