@@ -165,11 +165,19 @@ KeyboardProc2   proc    uses esi, nCode: DWORD, wParam: DWORD, lParam: DWORD
                                 .if     pressed == VK_CONTROL
                                         mov     pressed, 0
                                 .endif
+                                
+                                mov     eax, nowKeyInputIndexTimes4
+                                mov     edx, hWndComboBox[eax]
+                                invoke  SendMessage, edx, CB_DELETESTRING, numOperations - 1, 0
+                                invoke  SendMessage, edx, CB_ADDSTRING, 0, OFFSET data
+                                mov     eax, nowKeyInputIndexTimes4
+                                mov     operationIndexes[eax], numOperations - 1
+                                invoke  SendMessage, edx, CB_SETCURSEL, numOperations - 1, 0
                         .endif
 
                 .endif
 
-                mov     eax, 0
+                invoke  CallNextHookEx, keyHook, nCode, wParam, lParam
                 ret
 KeyboardProc2   endp
 
