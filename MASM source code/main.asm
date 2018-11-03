@@ -40,6 +40,15 @@ hWndComboBox    DWORD   numGestures dup(?)
 operationKey    DWORD   numGestures dup(0)
 nowKeyInputIndex    DWORD   -1
 
+tracking        SDWORD  0
+tracks          DWORD   10 dup(?)
+trackNum        SDWORD   0
+lastTrack       SDWORD  -1
+lastX           SDWORD  0
+lastY           SDWORD  0
+oldX            SDWORD  -1
+oldY            SDWORD  -1
+
 .const
 
 ; Records base key in lower 2bytes
@@ -90,6 +99,15 @@ GestureNames07  BYTE    'ÓÒ-ÉÏ', 0
 
 GestureNames    DWORD   GestureNames00, GestureNames01, GestureNames02, GestureNames03, GestureNames04,
                         GestureNames05, GestureNames06, GestureNames07
+
+GestureLeft     DWORD   0
+GestureRight    DWORD   1
+GestureUp       DWORD   2
+GestureDown     DWORD   3
+GestureLeftDown DWORD   4
+GestureLeftUp   DWORD   5
+GestureRightDown DWORD  6
+GestureRightUp  DWORD   7
 
 errorInfoText   BYTE    '´°¿Ú×¢²áÊ§°Ü£¡', 0
 errorInfoText2  BYTE    '´°¿Ú´´½¨Ê§°Ü£¡', 0
@@ -147,6 +165,121 @@ BackSpaceKey    BYTE    "BackSpace", 0
 DeleteKey       BYTE    "Delete", 0
 
 .code
+
+JudgeTrack      proc  uses ebx, xDiff: SDWORD, yDiff: SDWORD
+                local xChange: SDWORD, yChange: SDWORD
+                
+                .if xDiff > 0
+                        mov eax, xDiff
+                        mov xChange, eax
+                .else
+                        mov eax, xDiff
+                        neg eax
+                        mov xChange, eax
+                .endif
+                .if yDiff > 0
+                        mov eax, yDiff
+                        mov yChange, eax
+                .else
+                        mov eax, yDiff
+                        neg eax
+                        mov yChange, eax
+                .endif
+                mov eax, xChange
+                sal eax, 1
+                mov ebx, yChange
+                sal ebx, 1
+                .if yChange < eax && xChange < ebx
+                        .if xDiff > 0 && yDiff > 0
+                                mov eax, GestureRightDown
+                        .elseif xDiff > 0 && yDiff < 0
+                                mov eax, GestureRightUp
+                        .elseif xDiff < 0 && yDiff > 0
+                                mov eax, GestureLeftDown
+                        .else
+                                mov eax, GestureLeftUp
+                        .endif
+                .elseif xChange >= ebx
+                        .if xDiff > 0
+                                mov eax, GestureRight
+                        .else 
+                                mov eax, GestureLeft
+                        .endif
+                .else
+                        .if yDiff > 0
+                                mov eax, GestureDown
+                        .else 
+                                mov eax, GestureUp
+                        .endif
+                .endif
+                ret
+JudgeTrack      endp
+
+MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
+                local   x:SDWORD, y:SDWORD
+
+                .if     nCode >= 0
+
+                        .if wParam == WM_LBUTTONDOWN
+                                mov tracking, 0
+                        .elseif wParam == WM_LBUTTONUP
+                                mov tracking, 0
+                        .elseif wParam == WM_RBUTTONDOWN
+                                mov tracking, 1
+                        .elseif wParam == WM_RBUTTONUP
+                                mov tracking, 0
+                        .endif
+                        mov esi, lParam
+                        assume esi: PTR MOUSEHOOKSTRUCT
+                        push eax
+                        mov eax, [esi].pt.x
+                        mov x, eax
+                        mov eax, [esi].pt.y
+                        mov y, eax
+                        pop eax
+                        assume esi: nothing
+                        .if tracking == 1 && trackNum != -1
+                                mov eax, x
+                                sub eax, lastX
+                                mov edx, eax
+                                imul edx
+                                mov esi, eax
+                                mov eax, y
+                                sub eax, lastY
+                                mov edx, eax
+                                imul edx
+                                add esi, eax
+                                .if esi > 10000
+                                        mov ebx, x
+                                        sub ebx, lastX
+                                        mov edx, y
+                                        sub edx, lastY
+                                        invoke JudgeTrack, ebx, edx
+                                        .if eax != lastTrack
+                                                mov esi, trackNum
+                                                mov tracks[esi], eax
+                                                mov lastTrack, eax
+                                                inc trackNum
+                                                .if trackNum > 3
+                                                        mov trackNum, -1
+                                                        mov lastTrack, -1
+                                                .endif
+                                        .endif
+                                        mov eax, x
+                                        mov lastX, eax
+                                        mov eax, y
+                                        mov lastY, eax
+                                .endif
+                        .endif
+                        mov eax, x
+                        mov oldX, eax
+                        mov eax, y
+                        mov oldY, eax             
+                .endif
+                invoke  CallNextHookEx, keyHook, nCode, wParam, lParam
+                mov     eax, 0
+                ret
+MouseProc       endp
 
 KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                 local   p: PTR KBDLLHOOKSTRUCT, dataIndex: DWORD, pressed: DWORD, nowKeyInputIndexTimes4: DWORD, hWndComboBoxNowKeyInputIndex: DWORD
@@ -358,7 +491,6 @@ KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                 ret
 KeyboardProc2   endp
 
-
 _ProcWinMain    proc    uses ebx edx, hWnd, uMsg, wParam, lParam
                 local   wmId: WORD
                 local   wmEvent: WORD
@@ -492,7 +624,7 @@ _WinMain        proc    uses ebx esi
                 mov     wc.hIcon, eax
                 invoke  LoadCursor,0,IDC_ARROW
                 mov     wc.hCursor,eax
-                mov     wc.hbrBackground,COLOR_WINDOW + 1
+                mov     wc.hbrBackground, COLOR_WINDOW + 1
                 mov     wc.lpszMenuName, NULL
                 mov     wc.lpszClassName, offset windowClassName
                 invoke  LoadIcon, NULL, IDI_APPLICATION
@@ -526,8 +658,8 @@ _WinMain        proc    uses ebx esi
                 invoke  UpdateWindow,hWinMain
 
                 ; set mouse hook
-                ;invoke  SetWindowsHookEx, WH_MOUSE_LL, MouseProc, hInstance, 0
-                ;mov     mouseHook, eax
+                invoke  SetWindowsHookEx, WH_MOUSE_LL, MouseProc, hInstance, 0
+                mov     mouseHook, eax
 
                 mov     ecx, numGestures
                 mov     esi, 0
