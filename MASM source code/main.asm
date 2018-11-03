@@ -264,7 +264,7 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                                                 mov tracks[eax], esi
                                                 mov lastTrack, esi
                                                 inc trackNum
-                                                .if trackNum > 3
+                                                .if trackNum > 3 && trackNum < 80000000h
                                                         mov trackNum, -1
                                                         mov lastTrack, -1
                                                 .endif
