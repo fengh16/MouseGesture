@@ -126,11 +126,30 @@ buttonHMenuBase =       4000
 nullText        BYTE    0
 
 CtrlPlus        BYTE    "Ctrl+", 0
+AltPlus         BYTE    "Alt+", 0
+ShiftPlus       BYTE    "Shift+", 0
+WinPlus         BYTE    "Win+", 0
+CharOut         BYTE    "%c", 0
+IntOut          BYTE    "%d", 0
+FKeyOut         BYTE    "F%d", 0
+InsertKey       BYTE    "Insert", 0
+PageUpKey       BYTE    "PageUp", 0
+PageDownKey     BYTE    "PageDown", 0
+LeftKey         BYTE    "Left", 0
+RightKey        BYTE    "Right", 0
+UpKey           BYTE    "Up", 0
+DownKey         BYTE    "Down", 0
+EscKey          BYTE    "Esc", 0
+SpaceKey        BYTE    "Space", 0
+ReturnKey       BYTE    "Return", 0
+TabKey          BYTE    "Tab", 0
+BackSpaceKey    BYTE    "BackSpace", 0
+DeleteKey       BYTE    "Delete", 0
 
 .code
 
 KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
-                local   p: PTR KBDLLHOOKSTRUCT, dataIndexTimes4: DWORD, pressed: DWORD, nowKeyInputIndexTimes4: DWORD
+                local   p: PTR KBDLLHOOKSTRUCT, dataIndex: DWORD, pressed: DWORD, nowKeyInputIndexTimes4: DWORD, hWndComboBoxNowKeyInputIndex: DWORD
 
                 mov     eax, lParam
                 mov     p, eax
@@ -147,7 +166,7 @@ KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                         mul     ebx
                         mov     nowKeyInputIndexTimes4, eax
                         mov     operationKey[eax], 0
-                        mov     dataIndexTimes4, 0
+                        mov     dataIndex, 0
                 
                         invoke  GetKeyState, VK_CONTROL
                         .if     ah || pressed == VK_CONTROL
@@ -157,29 +176,181 @@ KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                                 mov     ebx, nowKeyInputIndexTimes4
                                 mov     operationKey[ebx], eax
                                 mov     eax, OFFSET data
-                                add     eax, dataIndexTimes4
+                                add     eax, dataIndex
                                 invoke  crt_sprintf, eax, OFFSET CtrlPlus
-                                mov     eax, dataIndexTimes4
-                                add     eax, 5*4
-                                mov     dataIndexTimes4, eax
+                                mov     eax, dataIndex
+                                add     eax, 5
+                                mov     dataIndex, eax
                                 .if     pressed == VK_CONTROL
                                         mov     pressed, 0
                                 .endif
-                                
-                                mov     eax, nowKeyInputIndexTimes4
-                                mov     edx, hWndComboBox[eax]
-                                push    edx
-                                invoke  SendMessage, edx, CB_DELETESTRING, numOperations - 1, 0
-                                pop     edx
-                                push    edx
-                                invoke  SendMessage, edx, CB_ADDSTRING, 0, OFFSET data
-                                mov     eax, nowKeyInputIndexTimes4
-                                mov     operationIndexes[eax], numOperations - 1
-                                pop     edx
-                                push    edx
-                                invoke  SendMessage, edx, CB_SETCURSEL, numOperations - 1, 0
-                                pop     edx
                         .endif
+
+                        invoke  GetKeyState, VK_MENU
+                        .if     ah || pressed == VK_MENU
+                                mov     eax, nowKeyInputIndexTimes4
+                                mov     eax, operationKey[eax]
+                                or      eax, ALT_ADDER
+                                mov     ebx, nowKeyInputIndexTimes4
+                                mov     operationKey[ebx], eax
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET AltPlus
+                                mov     eax, dataIndex
+                                add     eax, 4
+                                mov     dataIndex, eax
+                                .if     pressed == VK_MENU
+                                        mov     pressed, 0
+                                .endif
+                        .endif
+
+                        invoke  GetKeyState, VK_SHIFT
+                        .if     ah || pressed == VK_SHIFT
+                                mov     eax, nowKeyInputIndexTimes4
+                                mov     eax, operationKey[eax]
+                                or      eax, SHIFT_ADDER
+                                mov     ebx, nowKeyInputIndexTimes4
+                                mov     operationKey[ebx], eax
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET ShiftPlus
+                                mov     eax, dataIndex
+                                add     eax, 6
+                                mov     dataIndex, eax
+                                .if     pressed == VK_SHIFT
+                                        mov     pressed, 0
+                                .endif
+                        .endif
+
+                        invoke  GetKeyState, VK_LWIN
+                        .if     ah || pressed == VK_LWIN
+                                mov     eax, nowKeyInputIndexTimes4
+                                mov     eax, operationKey[eax]
+                                or      eax, LWIN_ADDER
+                                mov     ebx, nowKeyInputIndexTimes4
+                                mov     operationKey[ebx], eax
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET WinPlus
+                                mov     eax, dataIndex
+                                add     eax, 4
+                                mov     dataIndex, eax
+                                .if     pressed == VK_LWIN
+                                        mov     pressed, 0
+                                .endif
+                        .endif
+
+                        invoke  GetKeyState, VK_RWIN
+                        .if     ah || pressed == VK_RWIN
+                                mov     eax, nowKeyInputIndexTimes4
+                                mov     eax, operationKey[eax]
+                                or      eax, RWIN_ADDER
+                                mov     ebx, nowKeyInputIndexTimes4
+                                mov     operationKey[ebx], eax
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET WinPlus
+                                mov     eax, dataIndex
+                                add     eax, 6
+                                mov     dataIndex, eax
+                                .if     pressed == VK_RWIN
+                                        mov     pressed, 0
+                                .endif
+                        .endif
+
+                        .if (pressed >= 'A' && pressed <= 'Z') || (pressed >= '0' && pressed <= '9')
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET CharOut, pressed
+                        .elseif pressed >= 60h && pressed <= 69h
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                mov     ebx, pressed
+                                sub     ebx, 60h
+                                invoke  crt_sprintf, eax, OFFSET IntOut, ebx
+                        .elseif pressed >= 70h && pressed <= 87h
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                mov     ebx, pressed
+                                sub     ebx, 6Fh
+                                invoke  crt_sprintf, eax, OFFSET FKeyOut, ebx
+                        .elseif pressed == VK_INSERT
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET InsertKey
+                        .elseif pressed == VK_PRIOR
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET PageUpKey
+                        .elseif pressed == VK_NEXT
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET PageDownKey
+                        .elseif pressed == VK_LEFT
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET LeftKey
+                        .elseif pressed == VK_RIGHT
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET RightKey
+                        .elseif pressed == VK_UP
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET UpKey
+                        .elseif pressed == VK_DOWN
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET DownKey
+                        .elseif pressed == VK_INSERT
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET InsertKey
+                        .elseif pressed == VK_ESCAPE
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET EscKey
+                        .elseif pressed == VK_SPACE
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET SpaceKey
+                        .elseif pressed == VK_RETURN
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET ReturnKey
+                        .elseif pressed == VK_TAB
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET TabKey
+                        .elseif pressed == VK_BACK
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET BackSpaceKey
+                        .elseif pressed == VK_DELETE
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET DeleteKey
+                        .else
+                                mov pressed, 0
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                dec     eax
+                                invoke  crt_sprintf, eax, OFFSET nullText
+                        .endif
+                                
+                        mov     eax, nowKeyInputIndexTimes4
+                        mov     edx, hWndComboBox[eax]
+                        push    edx
+                        invoke  SendMessage, edx, CB_DELETESTRING, numOperations - 1, 0
+                        pop     edx
+                        push    edx
+                        invoke  SendMessage, edx, CB_ADDSTRING, 0, OFFSET data
+                        mov     eax, nowKeyInputIndexTimes4
+                        mov     operationIndexes[eax], numOperations - 1
+                        pop     edx
+                        push    edx
+                        invoke  SendMessage, edx, CB_SETCURSEL, numOperations - 1, 0
+                        pop     edx
                 
                 .endif
 
