@@ -125,19 +125,54 @@ buttonHMenuBase =       4000
 
 nullText        BYTE    0
 
+CtrlPlus        BYTE    "Ctrl+", 0
+
 .code
 
-KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
-                local   p: PTR PKBDLLHOOKSTRUCT
-                local   data_index: DWORD
+KeyboardProc2   proc    uses esi, nCode: DWORD, wParam: DWORD, lParam: DWORD
+                local   p: PTR KBDLLHOOKSTRUCT
+                local   dataIndexTimes4: DWORD
                 local   pressed: DWORD
+                local   nowKeyInputIndexTimes4: DWORD
+
+                mov     eax, lParam
+                mov     p, eax
                 
-                .if     nCode >= 0 && nowKeyInputIndex != -1
+                .if     nCode >= 0 && nowKeyInputIndex != -1 && wParam == WM_KEYDOWN
+                        mov     esi, p
+                        ASSUME  esi: ptr KBDLLHOOKSTRUCT
+                        mov     eax, [esi].vkCode
+                        mov     pressed, eax
+
+                        mov     eax, nowKeyInputIndex
+                        mov     ebx, 4
+                        mul     ebx
+                        mov     nowKeyInputIndexTimes4, eax
+                        mov     operationKey[eax], 0
+                        mov     dataIndexTimes4, 0
+
+                        invoke  GetKeyState, VK_CONTROL
+                        .if     ah || pressed == VK_CONTROL
+                                mov     eax, nowKeyInputIndexTimes4
+                                mov     eax, operationKey[eax]
+                                or      eax, CONTROL_ADDER
+                                mov     ebx, nowKeyInputIndexTimes4
+                                mov     operationKey[ebx], eax
+                                invoke  crt_sprintf, data + dataIndexTimes4, OFFSET CtrlPlus
+                                mov     eax, dataIndexTimes4
+                                add     eax, 5*4
+                                mov     dataIndexTimes4, eax
+                                .if     pressed == VK_CONTROL
+                                        mov     pressed, 0
+                                .endif
+                        .endif
+
                 .endif
 
                 mov     eax, 0
                 ret
 KeyboardProc2   endp
+
 
 _ProcWinMain    proc    uses ebx edx, hWnd, uMsg, wParam, lParam
                 local   wmId: WORD
@@ -189,9 +224,7 @@ _ProcWinMain    proc    uses ebx edx, hWnd, uMsg, wParam, lParam
                                                 pop     eax
                                                 push    eax
                                                 mov     operationIndexes[eax], numOperations - 1
-                                                pop     ebx
-                                                mov     eax, ebx
-                                                invoke  SendMessage, nowKeyInputIndex[ebx], CB_SETCURSEL, operationIndexes[eax], 0
+                                                invoke  SendMessage, hWndComboBox[eax], CB_SETCURSEL, operationIndexes[eax], 0
                                         .else
                                                 mov     keyHooked, 0
                                                 invoke  UnhookWindowsHookEx, keyHook
