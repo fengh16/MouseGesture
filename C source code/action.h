@@ -21,7 +21,7 @@ void mute(); //静音
 void soundUp(); //增大音量
 void soundDown(); //减小音量
 
-//控制面板
+                  //控制面板
 void ControlPanel();
 //任务管理器
 void TaskManager();
