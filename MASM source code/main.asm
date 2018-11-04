@@ -725,6 +725,7 @@ KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
 
                 mov     eax, lParam
                 mov     p, eax
+                mov     pressed, 0
                 
                 .if     nCode < 80000000h && nowKeyInputIndex != -1 && wParam == WM_KEYDOWN
                         mov     edx, p
@@ -928,8 +929,13 @@ KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                         push    edx
                         invoke  SendMessage, edx, CB_SETCURSEL, numOperations - 1, 0
                         pop     edx
-                
+
+                        .if     pressed != 0
+                                mov     eax, 1
+                                ret
+                        .endif
                 .endif
+
 
                 invoke  CallNextHookEx, keyHook, nCode, wParam, lParam
                 mov     eax, 0
