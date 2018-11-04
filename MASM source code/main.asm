@@ -9,6 +9,8 @@ include         user32.inc
 includelib      user32.lib
 include         kernel32.inc
 includelib      kernel32.lib
+include         masm32.inc
+includelib      masm32.lib
 include         msvcrt.inc
 includelib      msvcrt.lib
 include         action.inc
@@ -31,7 +33,9 @@ data            BYTE    256 dup(0)
 ghInstance      DWORD   ?
 
 itemSelected    BYTE    "Selected operation No.%d for gesture No.%d", 0
+trackans        BYTE    "lastTrack是%d, 执行第%d个操作", 0
 selectedDetail  BYTE    "已变更操作“%s”为执行“%s”", 0
+showOperation   BYTE    "%s",0
 
 numGestures     =       8
 numOperations   =       21
@@ -55,7 +59,7 @@ ActionList      DWORD   OFFSET copy, OFFSET paste, OFFSET Win, OFFSET AltTab, OF
                         OFFSET WinD, OFFSET WinUp, OFFSET WinDown, OFFSET WinLeft, OFFSET WinRight,
                         OFFSET AltLeft, OFFSET AltRight, OFFSET mute2, OFFSET soundUp2, OFFSET soundDown2,
                         OFFSET ControlPanel, OFFSET TaskManager, OFFSET NotePad, OFFSET Calculator, OFFSET WebSearchAuto,
-                        OFFSET WinD ; need to do the acc keys
+                        OFFSET PressKeys ; need to do the acc keys
 ; end of action list
 
 .const
@@ -186,6 +190,14 @@ arg_WebSearchText_url BYTE 0
 
 .code
 
+RGB MACRO red, green, blue
+    xor eax, eax
+    mov ah, blue    ; blue
+    mov al, green   ; green
+    rol eax, 8
+    mov al, red     ; red
+ENDM
+
 ; ==========================================================
 OneKeyAction PROC STDCALL,
     key:BYTE, 
@@ -220,6 +232,87 @@ TwoKeysAction PROC STDCALL,
     ret
 TwoKeysAction ENDP 
 
+PressKeys       PROC uses ebx
+                local keyinfo: DWORD
+                mov     eax, lastTrack
+                .if     eax < numGestures
+                        mov     ebx, 4
+                        mul     ebx
+                        mov     eax, operationKey[eax]
+                        mov     keyinfo, eax
+                        ; check control
+                        mov     eax, keyinfo
+                        and     eax, CONTROL_ADDER
+                        .if     eax != 0
+                                invoke keybd_event, VK_CONTROL, 0, 0, 0
+                        .endif
+                        ; check ALT
+                        mov     eax, keyinfo
+                        and     eax, ALT_ADDER
+                        .if     eax != 0
+                                invoke keybd_event, VK_MENU, 0, 0, 0
+                        .endif
+                        ; check SHIFT
+                        mov     eax, keyinfo
+                        and     eax, SHIFT_ADDER
+                        .if     eax != 0
+                                invoke keybd_event, VK_SHIFT, 0, 0, 0
+                        .endif
+                        ; check lwin
+                        mov     eax, keyinfo
+                        and     eax, LWIN_ADDER
+                        .if     eax != 0
+                                invoke keybd_event, VK_LWIN, 0, 0, 0
+                        .endif
+                        ; check RWIN
+                        mov     eax, keyinfo
+                        and     eax, RWIN_ADDER
+                        .if     eax != 0
+                                invoke keybd_event, VK_RWIN, 0, 0, 0
+                        .endif
+                        ; press normal key
+                        mov     eax, keyinfo
+                        and     eax, 08000000h - 1
+                        .if     eax != 0
+                                invoke keybd_event, eax, 0, 0, 0
+                        .endif
+                        
+                        invoke Sleep, KEYDOWNTIME
+                        
+                        mov     eax, keyinfo
+                        and     eax, 08000000h - 1
+                        .if     eax != 0
+                                invoke keybd_event, eax, 0, KEYEVENTF_KEYUP, 0
+                        .endif
+
+                        mov     eax, keyinfo
+                        and     eax, RWIN_ADDER
+                        .if     eax != 0
+                                invoke keybd_event, VK_RWIN, 0, KEYEVENTF_KEYUP, 0
+                        .endif
+                        mov     eax, keyinfo
+                        and     eax, LWIN_ADDER
+                        .if     eax != 0
+                                invoke keybd_event, VK_LWIN, 0, KEYEVENTF_KEYUP, 0
+                        .endif
+                        mov     eax, keyinfo
+                        and     eax, SHIFT_ADDER
+                        .if     eax != 0
+                                invoke keybd_event, VK_SHIFT, 0, KEYEVENTF_KEYUP, 0
+                        .endif
+                        mov     eax, keyinfo
+                        and     eax, ALT_ADDER
+                        .if     eax != 0
+                                invoke keybd_event, VK_MENU, 0, KEYEVENTF_KEYUP, 0
+                        .endif
+                        mov     eax, keyinfo
+                        and     eax, CONTROL_ADDER
+                        .if     eax != 0
+                                invoke keybd_event, VK_CONTROL, 0, KEYEVENTF_KEYUP, 0
+                        .endif
+                .endif
+                ret
+PressKeys       ENDP
 
 ; ==========================================================
 copy PROC STDCALL
@@ -510,7 +603,7 @@ JudgeTrack      proc  uses ebx, xDiff: DWORD, yDiff: DWORD
 JudgeTrack      endp
 
 MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
-                local   x: DWORD, y: DWORD
+                local   x: DWORD, y: DWORD, hDC:DWORD, hPen:DWORD, hPenOld:DWORD
 
                 .if     nCode < 80000000h
 
@@ -532,6 +625,36 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                         pop eax
                         assume esi: nothing
                         .if tracking == 1 && trackNum != -1
+                                .if oldX != -1
+                                        ; draw trace
+                                        invoke GetDC, hDesktop
+                                        mov hDC, eax
+                                        push eax
+                                        RGB 255,0,255
+                                        movzx edx, ax
+                                        pop eax
+                                        invoke CreatePen, PS_SOLID, 3, edx
+                                        mov DWORD PTR hPen, eax
+                                        invoke SelectObject, DWORD PTR hDC, DWORD PTR hPen
+                                        mov DWORD PTR hPenOld, eax
+                                        invoke MoveToEx, DWORD PTR hDC, oldX, oldY, 0
+                                        invoke LineTo, DWORD PTR hDC, x, y
+                                        invoke SelectObject, DWORD PTR hDC, DWORD PTR hPenOld
+                                        invoke DeleteObject, DWORD PTR hPen
+                                        invoke ReleaseDC, hDesktop, DWORD PTR hDC
+                                        ; print text
+                                        .if     tracking == 2 && trackNum != -1 && trackNum < numOperations
+                                                mov     eax, lastTrack
+                                                mov     ebx, 4
+                                                mul     ebx
+                                                mov     eax, operationIndexes[eax]
+                                                mul     ebx
+                                                invoke SendMessage, lParam, CB_GETLBTEXT, eax, offset ListItem
+                                                invoke crt_sprintf, OFFSET MsgText, OFFSET showOperation, OFFSET ListItem
+                                                invoke crt_strlen, OFFSET MsgText
+                                                invoke TextOut, hDC, 300, 300, OFFSET MsgText, eax
+                                        .endif
+                                .endif
                                 mov eax, x
                                 sub eax, lastX
                                 mov edx, eax
@@ -573,6 +696,10 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                                 mov     ebx, 4
                                 mul     ebx
                                 mov     eax, operationIndexes[eax]
+								push	eax
+								invoke	crt_sprintf, OFFSET data, OFFSET trackans, lastTrack, eax
+								invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
+								pop		eax
                                 mul     ebx
                                 call    ActionList[eax]
                         .endif
