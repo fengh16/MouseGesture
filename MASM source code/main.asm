@@ -18,6 +18,9 @@ include         shell32.inc
 includelib      shell32.lib
 
 .data
+logfont			LOGFONT <>
+hFont			DWORD	?
+yahei			BYTE	"微软雅黑",0
 hgWindow        DWORD   ?
 hDesktop        DWORD   ?
 keyHook         DWORD   ?
@@ -36,7 +39,7 @@ itemSelected    BYTE    "Selected operation No.%d for gesture No.%d", 0
 trackans        BYTE    "lastTrack是%d, 执行第%d个操作", 0
 pressans        BYTE    "lastTrack是%d, 按键%d", 0
 selectedDetail  BYTE    "已变更操作“%s”为执行“%s”", 0
-showOperation   BYTE    "%s",0
+showString		BYTE    "%s",0
 
 numGestures     =       8
 numOperations   =       20
@@ -649,11 +652,13 @@ JudgeTrack      endp
 MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                 local   x: DWORD, y: DWORD, hDC:DWORD, hPen:DWORD, hPenOld:DWORD, index: DWORD
                 local   xDiffSquare: DWORD, yDiffSquare: DWORD, track: DWORD
+				local   xRightClick: DWORD, yRightClick: DWORD, didntMove: DWORD
 
                 .if     nCode < 80000000h
 
                         .if     wParam == WM_RBUTTONDOWN
                                 mov     tracking, 1
+                                mov     lastTrack, -1
                         .elseif wParam == WM_RBUTTONUP
                                 mov     tracking, 0
                                 .if     trackNum != -1 && lastTrack != -1 && lastTrack < numGestures
@@ -669,9 +674,24 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                                         ; eax=index*4
                                         call    ActionList[eax]
                                         pop	eax ;pop index to show messagebox
-					                    ; invoke	crt_sprintf, OFFSET data, OFFSET trackans, lastTrack, eax
-					                    ; invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
-                                .endif
+					                    mov ebx, eax
+										mov edx, 4
+										mul edx
+										mov edx, hWndComboBox[eax]
+										invoke SendMessage, edx, CB_GETLBTEXT, ebx, OFFSET data
+										invoke GetDC, hDesktop
+										mov hDC, eax
+										mov logfont.lfCharSet, GB2312_CHARSET
+										mov logfont.lfHeight, -50
+										invoke crt_strcpy, offset logfont.lfFaceName, offset yahei
+										
+										invoke CreateFontIndirect, offset logfont
+										mov hFont, eax
+										invoke SelectObject, hDC, hFont
+										invoke crt_strlen, offset data
+										invoke TextOut, hDC, 400, 500, offset data, eax
+										invoke ReleaseDC, hDesktop, hDC
+								.endif
                                 mov     trackNum, 0
                                 mov     oldX, -1
                                 mov     oldY, -1
@@ -689,8 +709,48 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                         ;x = p->pt.x;
                         ;y = p->pt.y;
 
+                        .if     wParam == WM_RBUTTONDOWN
+                                mov     eax, x
+                                mov     xRightClick, eax
+                                mov     eax, y
+                                mov     yRightClick, eax
+                        .elseif wParam == WM_RBUTTONUP
+                                mov     eax, x
+                                sub     eax, xRightClick
+                                .if     eax >= 80000000h
+                                        neg     eax
+                                .endif
+                                mov     ebx, y
+                                sub     ebx, yRightClick
+                                .if     ebx >= 80000000h
+                                        neg     ebx
+                                .endif
+                                add     eax, ebx
+                                .if     eax < 100
+                                        mov     didntMove, 1
+                                .else
+                                        mov     didntMove, 0
+                                .endif
+                        .endif
+
                         .if tracking == 1 && trackNum != -1
                                 .if oldX != -1
+										; draw trace
+										invoke GetDC, hDesktop
+										mov hDC, eax
+										push eax
+										mov edx, 0ff00ffh
+										pop eax
+										invoke CreatePen, PS_SOLID, 10, edx
+										mov hPen, eax
+										invoke SelectObject, hDC, hPen
+										mov hPenOld, eax
+										invoke MoveToEx, hDC, oldX, oldY, 0
+										invoke LineTo, hDC, x, y
+										invoke SelectObject, hDC, hPenOld
+										invoke DeleteObject, hPen
+										invoke ReleaseDC, hDesktop, hDC
+
                                         mov     eax, x
                                         sub     eax, lastX
                                         .if     eax >= 80000000h
@@ -755,7 +815,22 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                                 ;oldY = y;
                         .endif
                 .endif
-                invoke  CallNextHookEx, keyHook, nCode, wParam, lParam
+                .if     wParam == WM_RBUTTONDOWN
+                        mov     eax, 1
+                .elseif wParam == WM_RBUTTONUP && didntMove == 0
+                        mov     eax, 1
+                .elseif wParam == WM_RBUTTONUP
+                        invoke  mouse_event, MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0
+                        ;invoke  Sleep, KEYDOWNTIME
+                        mov     tracking, 0
+                        mov     oldX, -1
+                        mov     oldY, -1
+                        ;invoke  mouse_event, MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0
+                        mov     eax, 0
+                .else
+                        mov     eax, 0
+                        invoke  CallNextHookEx, keyHook, nCode, wParam, lParam
+                .endif
                 ;mov eax, 1
                 ret
 MouseProc       endp
