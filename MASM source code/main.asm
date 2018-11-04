@@ -34,6 +34,7 @@ ghInstance      DWORD   ?
 
 itemSelected    BYTE    "Selected operation No.%d for gesture No.%d", 0
 trackans        BYTE    "lastTrack是%d, 执行第%d个操作", 0
+pressans        BYTE    "lastTrack是%d, 按键%d", 0
 selectedDetail  BYTE    "已变更操作“%s”为执行“%s”", 0
 showOperation   BYTE    "%s",0
 
@@ -234,12 +235,18 @@ TwoKeysAction ENDP
 
 PressKeys       PROC uses ebx
                 local keyinfo: DWORD
+
                 mov     eax, lastTrack
                 .if     eax < numGestures
                         mov     ebx, 4
                         mul     ebx
                         mov     eax, operationKey[eax]
                         mov     keyinfo, eax
+                                mov     ebx, keyinfo
+                                and     ebx, 255
+								invoke	crt_sprintf, OFFSET data, OFFSET pressans, lastTrack, ebx
+
+								invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
                         ; check control
                         mov     eax, keyinfo
                         and     eax, CONTROL_ADDER
@@ -697,11 +704,11 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                                 mul     ebx
                                 mov     eax, operationIndexes[eax]
 								push	eax
-								invoke	crt_sprintf, OFFSET data, OFFSET trackans, lastTrack, eax
-								invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
-								pop		eax
                                 mul     ebx
                                 call    ActionList[eax]
+								pop		eax
+								invoke	crt_sprintf, OFFSET data, OFFSET trackans, lastTrack, eax
+								invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
                         .endif
                         mov eax, x
                         mov oldX, eax
@@ -709,6 +716,7 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                         mov oldY, eax             
                 .endif
                 invoke  CallNextHookEx, keyHook, nCode, wParam, lParam
+                ;mov eax, 1
                 ret
 MouseProc       endp
 
@@ -722,6 +730,7 @@ KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                         mov     edx, p
                         assume  edx: ptr KBDLLHOOKSTRUCT
                         mov     eax, [edx].vkCode
+                        and     eax, 255
                         assume  edx: nothing
                         mov     pressed, eax
                         
@@ -895,13 +904,17 @@ KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                                 add     eax, dataIndex
                                 invoke  crt_sprintf, eax, OFFSET DeleteKey
                         .else
-                                mov pressed, 0
+                                mov     pressed, 0
                                 mov     eax, OFFSET data
                                 add     eax, dataIndex
                                 dec     eax
                                 invoke  crt_sprintf, eax, OFFSET nullText
                         .endif
-                                
+
+                        mov     ebx, nowKeyInputIndexTimes4
+                        mov     eax, operationKey[ebx]
+                        or      eax, pressed
+                        mov     operationKey[ebx], eax
                         mov     eax, nowKeyInputIndexTimes4
                         mov     edx, hWndComboBox[eax]
                         push    edx
@@ -919,6 +932,7 @@ KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                 .endif
 
                 invoke  CallNextHookEx, keyHook, nCode, wParam, lParam
+                mov     eax, 0
                 ret
 KeyboardProc2   endp
 
