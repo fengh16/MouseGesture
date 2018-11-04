@@ -79,10 +79,10 @@ Planets02       BYTE    '开始', 0
 Planets03       BYTE    '切换任务', 0
 Planets04       BYTE    '查看任务', 0
 Planets05       BYTE    '桌面', 0
-Planets06       BYTE    '最大化/上半屏', 0
-Planets07       BYTE    '最小化/下半屏', 0
-Planets08       BYTE    '左半屏', 0
-Planets09       BYTE    '右半屏', 0
+Planets06       BYTE    '最大化', 0
+Planets07       BYTE    '退出最大化/最小化', 0
+Planets08       BYTE    '左半屏/左变右/右变正常', 0
+Planets09       BYTE    '右半屏/右变左/左变正常', 0
 Planets10       BYTE    '后退', 0
 Planets11       BYTE    '前进', 0
 Planets12       BYTE    '静音', 0
@@ -105,10 +105,10 @@ GestureNames00  BYTE    '左划', 0
 GestureNames01  BYTE    '右划', 0
 GestureNames02  BYTE    '上划', 0
 GestureNames03  BYTE    '下划', 0
-GestureNames04  BYTE    '左-下', 0
-GestureNames05  BYTE    '左-上', 0
-GestureNames06  BYTE    '右-下', 0
-GestureNames07  BYTE    '右-上', 0
+GestureNames04  BYTE    '左下', 0
+GestureNames05  BYTE    '左上', 0
+GestureNames06  BYTE    '右下', 0
+GestureNames07  BYTE    '右上', 0
 
 GestureNames    DWORD   GestureNames00, GestureNames01, GestureNames02, GestureNames03, GestureNames04,
                         GestureNames05, GestureNames06, GestureNames07
@@ -265,11 +265,10 @@ PressKeys       PROC uses ebx
                         mul     ebx
                         mov     eax, operationKey[eax]
                         mov     keyinfo, eax
-                                mov     ebx, keyinfo
-                                and     ebx, 255
-								invoke	crt_sprintf, OFFSET data, OFFSET pressans, lastTrack, ebx
-
-								invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
+                        ; mov     ebx, keyinfo
+                        ; and     ebx, 255
+                        ; invoke	crt_sprintf, OFFSET data, OFFSET pressans, lastTrack, ebx
+                        ; invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
                         ; check control
                         mov     eax, keyinfo
                         and     eax, CONTROL_ADDER
@@ -302,7 +301,7 @@ PressKeys       PROC uses ebx
                         .endif
                         ; press normal key
                         mov     eax, keyinfo
-                        and     eax, 08000000h - 1
+                        and     eax, 255
                         .if     eax != 0
                                 invoke keybd_event, eax, 0, 0, 0
                         .endif
@@ -310,7 +309,7 @@ PressKeys       PROC uses ebx
                         invoke Sleep, KEYDOWNTIME
                         
                         mov     eax, keyinfo
-                        and     eax, 08000000h - 1
+                        and     eax, 255
                         .if     eax != 0
                                 invoke keybd_event, eax, 0, KEYEVENTF_KEYUP, 0
                         .endif
@@ -669,8 +668,8 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                                         ; eax=index*4
                                         call    ActionList[eax]
                                         pop	eax ;pop index to show messagebox
-					invoke	crt_sprintf, OFFSET data, OFFSET trackans, lastTrack, eax
-					invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
+					                    ; invoke	crt_sprintf, OFFSET data, OFFSET trackans, lastTrack, eax
+					                    ; invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
                                 .endif
                                 mov     trackNum, 0
                                 mov     oldX, -1
