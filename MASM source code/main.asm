@@ -585,45 +585,59 @@ WebSearchAuto ENDP
 
 JudgeTrack      proc  uses ebx, xDiff: DWORD, yDiff: DWORD
                 local xChange: DWORD, yChange: DWORD
+                local xChangePos: DWORD, yChangePos: DWORD
+                local xChangeMulti3: DWORD, yChangeMulti3: DWORD
                 
                 .if xDiff < 80000000h
                         mov eax, xDiff
-                        mov xChange, eax
+                        mov xChangePos, 1
                 .else
                         mov eax, xDiff
                         neg eax
-                        mov xChange, eax
+                        mov xChangePos, 0
                 .endif
+                and     eax, 1FFFh
+                mov     xChange, eax
+                ; int xChange = xDiff > 0 ? xDiff : -xDiff;
                 .if yDiff < 80000000h
                         mov eax, yDiff
-                        mov yChange, eax
+                        mov yChangePos, 1
                 .else
                         mov eax, yDiff
                         neg eax
-                        mov yChange, eax
+                        mov yChangePos, 0
                 .endif
-                mov eax, xChange
-                sal eax, 1
-                mov ebx, yChange
-                sal ebx, 1
-                .if yChange < eax && xChange < ebx
-                        .if xDiff < 80000000h && yDiff < 80000000h 
+                and     eax, 1FFFh
+                mov     yChange, eax
+                ; int yChange = yDiff > 0 ? yDiff : -yDiff;
+                mov     eax, xChange
+                mov     ebx, 3
+                mul     ebx
+                mov     xChangeMulti3, eax
+                mov     eax, yChange
+                mov     ebx, 3
+                mul     ebx
+                mov     yChangeMulti3, eax
+                mov     eax, xChange
+                mov     ebx, yChange
+                .if     eax < yChangeMulti3 && ebx < xChangeMulti3
+                        .if     xChangePos != 0 && yChangePos != 0 
                                 mov eax, GestureRightDown
-                        .elseif xDiff < 80000000h
+                        .elseif xChangePos != 0
                                 mov eax, GestureRightUp
-                        .elseif yDiff < 80000000h
+                        .elseif yChangePos != 0
                                 mov eax, GestureLeftDown
                         .else
                                 mov eax, GestureLeftUp
                         .endif
-                .elseif xChange >= ebx
-                        .if xDiff < 80000000h
+                .elseif eax >= yChangeMulti3
+                        .if     xChangePos != 0
                                 mov eax, GestureRight
                         .else 
                                 mov eax, GestureLeft
                         .endif
                 .else
-                        .if yDiff < 80000000h
+                        .if     yChangePos != 0
                                 mov eax, GestureDown
                         .else 
                                 mov eax, GestureUp
@@ -633,18 +647,36 @@ JudgeTrack      proc  uses ebx, xDiff: DWORD, yDiff: DWORD
 JudgeTrack      endp
 
 MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: DWORD
-                local   x: DWORD, y: DWORD, hDC:DWORD, hPen:DWORD, hPenOld:DWORD
+                local   x: DWORD, y: DWORD, hDC:DWORD, hPen:DWORD, hPenOld:DWORD, index: DWORD
+                local   xDiffSquare: DWORD, yDiffSquare: DWORD, track: DWORD
 
                 .if     nCode < 80000000h
 
-                        .if wParam == WM_RBUTTONDOWN
-                                mov tracking, 1
+                        .if     wParam == WM_RBUTTONDOWN
+                                mov     tracking, 1
                         .elseif wParam == WM_RBUTTONUP
-                                mov tracking, 2
-                        .else
-                                mov tracking, 0
-
+                                mov     tracking, 0
+                                .if     trackNum != -1 && lastTrack != -1 && lastTrack < numGestures
+                                        mov     eax, lastTrack
+                                        mov     ebx, 4
+                                        mul     ebx
+                                        ; now eax = lastTrack*4
+                                        mov     eax, operationIndexes[eax]
+                                        mov     index, eax
+                                        ; index = operationIndexes[lastTrack];
+                                        push	eax ;push index
+                                        mul     ebx
+                                        ; eax=index*4
+                                        call    ActionList[eax]
+                                        pop	eax ;pop index to show messagebox
+					invoke	crt_sprintf, OFFSET data, OFFSET trackans, lastTrack, eax
+					invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
+                                .endif
+                                mov     trackNum, 0
+                                mov     oldX, -1
+                                mov     oldY, -1
                         .endif
+
                         mov esi, lParam
                         assume esi: PTR MOUSEHOOKSTRUCT
                         push eax
@@ -654,89 +686,74 @@ MouseProc       proc    uses ebx esi edx, nCode: DWORD, wParam: DWORD, lParam: D
                         mov y, eax
                         pop eax
                         assume esi: nothing
+                        ;x = p->pt.x;
+                        ;y = p->pt.y;
+
                         .if tracking == 1 && trackNum != -1
                                 .if oldX != -1
-                                        ; draw trace
-                                        invoke GetDC, hDesktop
-                                        mov hDC, eax
-                                        push eax
-                                        RGB 255,0,255
-                                        movzx edx, ax
-                                        pop eax
-                                        invoke CreatePen, PS_SOLID, 3, edx
-                                        mov DWORD PTR hPen, eax
-                                        invoke SelectObject, DWORD PTR hDC, DWORD PTR hPen
-                                        mov DWORD PTR hPenOld, eax
-                                        invoke MoveToEx, DWORD PTR hDC, oldX, oldY, 0
-                                        invoke LineTo, DWORD PTR hDC, x, y
-                                        invoke SelectObject, DWORD PTR hDC, DWORD PTR hPenOld
-                                        invoke DeleteObject, DWORD PTR hPen
-                                        invoke ReleaseDC, hDesktop, DWORD PTR hDC
-                                        ; print text
-                                        .if     tracking == 2 && trackNum != -1 && trackNum < numOperations
-                                                mov     eax, lastTrack
-                                                mov     ebx, 4
-                                                mul     ebx
-                                                mov     eax, operationIndexes[eax]
-                                                mul     ebx
-                                                invoke SendMessage, lParam, CB_GETLBTEXT, eax, offset ListItem
-                                                invoke crt_sprintf, OFFSET MsgText, OFFSET showOperation, OFFSET ListItem
-                                                invoke crt_strlen, OFFSET MsgText
-                                                invoke TextOut, hDC, 300, 300, OFFSET MsgText, eax
+                                        mov     eax, x
+                                        sub     eax, lastX
+                                        .if     eax >= 80000000h
+                                                neg     eax
                                         .endif
-                                .endif
-                                mov eax, x
-                                sub eax, lastX
-                                mov edx, eax
-                                imul edx
-                                mov esi, eax
-                                mov eax, y
-                                sub eax, lastY
-                                mov edx, eax
-                                imul edx
-                                add esi, eax
-                                .if esi > 10000 && esi < 80000000h
-                                        mov ebx, x
-                                        sub ebx, lastX
-                                        mov edx, y
-                                        sub edx, lastY
-                                        invoke JudgeTrack, ebx, edx
-                                        .if eax != lastTrack
-                                                push eax
-                                                mov eax, trackNum
-                                                mov esi, 4
-                                                mul esi
-                                                pop esi
-                                                mov tracks[eax], esi
-                                                mov lastTrack, esi
-                                                inc trackNum
-                                                .if trackNum > 3 && trackNum < 80000000h
-                                                        mov trackNum, -1
-                                                        mov lastTrack, -1
+                                        mov     ebx, eax
+                                        mul     ebx
+                                        ;eax = |x-lastX|^2
+                                        mov     xDiffSquare, eax
+
+                                        mov     eax, y
+                                        sub     eax, lastY
+                                        .if     eax >= 80000000h
+                                                neg     eax
+                                        .endif
+                                        mov     ebx, eax
+                                        mul     ebx
+                                        ;eax = |y-lastY|^2
+                                        mov     yDiffSquare, eax
+
+                                        mov     esi, eax
+                                        add     esi, xDiffSquare
+
+                                        .if     esi > 10000 && esi < 80000000h
+                                        ;if ((x - lastX)*(x - lastX) + (y - lastY)*(y - lastY) > 10000)
+                                                mov     ebx, x
+                                                sub     ebx, lastX
+                                                mov     edx, y
+                                                sub     edx, lastY
+                                                invoke  JudgeTrack, ebx, edx
+                                                mov     track, eax
+                                                .if     eax != lastTrack
+                                                        mov     eax, trackNum
+                                                        mov     esi, 4
+                                                        mul     esi
+                                                        ; eax = trackNum*4
+                                                        mov     esi, track
+                                                        mov     tracks[eax], esi
+                                                        mov     lastTrack, esi
+                                                        inc     trackNum
+                                                        .if     trackNum > 3 && trackNum < 80000000h
+                                                                mov trackNum, -1
+                                                                mov lastTrack, -1
+                                                        .endif
                                                 .endif
+                                                mov eax, x
+                                                mov lastX, eax
+                                                mov eax, y
+                                                mov lastY, eax
                                         .endif
+                                .elseif
                                         mov eax, x
                                         mov lastX, eax
                                         mov eax, y
                                         mov lastY, eax
                                 .endif
+                                mov eax, x
+                                mov oldX, eax
+                                mov eax, y
+                                mov oldY, eax
+                                ;oldX = x;
+                                ;oldY = y;
                         .endif
-                        .if     tracking == 2 && trackNum != -1 && trackNum < numOperations
-                                mov     eax, lastTrack
-                                mov     ebx, 4
-                                mul     ebx
-                                mov     eax, operationIndexes[eax]
-								push	eax
-                                mul     ebx
-                                call    ActionList[eax]
-								pop		eax
-								invoke	crt_sprintf, OFFSET data, OFFSET trackans, lastTrack, eax
-								invoke  MessageBox, hgWindow, OFFSET data, OFFSET data, MB_OK
-                        .endif
-                        mov eax, x
-                        mov oldX, eax
-                        mov eax, y
-                        mov oldY, eax             
                 .endif
                 invoke  CallNextHookEx, keyHook, nCode, wParam, lParam
                 ;mov eax, 1
