@@ -1,4 +1,5 @@
 #include "hook.h"
+#include <iostream>
 
 const int GESTURE_UP = 0;
 const int GESTURE_DOWN = 1;
@@ -9,7 +10,7 @@ const int GESTURE_DOWNLEFT = 5;
 const int GESTURE_UPRIGHT = 6;
 const int GESTURE_DOWNRIGHT = 7;
 
-int tracking = false;
+int tracking = 0;
 int tracks[100];
 int trackNum = 0;
 int lastTrack = -1;
@@ -18,11 +19,11 @@ int lastY = 0;
 int oldX = -1;
 int oldY = -1;
 
-int judgeTrack(int xDiff, int yDiff)
+int judgeTrack(int yDiff, int xDiff)
 {
     int xChange = xDiff > 0 ? xDiff : -xDiff;
     int yChange = yDiff > 0 ? yDiff : -yDiff;
-    if (yChange < 2 * xChange && xChange < 2 * yChange)
+    if (yChange < 3 * xChange && xChange < 3 * yChange)
     {
         if (xDiff > 0 && yDiff > 0)
         {
@@ -41,7 +42,7 @@ int judgeTrack(int xDiff, int yDiff)
             return GESTURE_UPLEFT;
         }
     }
-    else if (xChange >= 2 * yChange)
+    else if (xChange >= 3 * yChange)
     {
         if (xDiff > 0)
         {
@@ -64,9 +65,12 @@ int judgeTrack(int xDiff, int yDiff)
 
 LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
+    int x, y;
+    int index;
+    int track;
     MOUSEHOOKSTRUCT* p = (MOUSEHOOKSTRUCT*)lParam;
-    const wchar_t *info = NULL;
-    wchar_t text[50], data[20];
+	TCHAR info;
+	TCHAR text[50], data[20];
 
     PAINTSTRUCT ps;
     HDC hdc;
@@ -75,78 +79,97 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
     {
         if (wParam == WM_LBUTTONDOWN)
         {
-            info = L"Êó±ê×ó¼ü°´ÏÂ";
-            tracking = true;
+            //info = TEXT("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
+       
         }
         else if (wParam == WM_LBUTTONUP)
         {
-            info = L"Êó±ê×ó¼üÌ§Æð";
-            tracking = false;
-            trackNum = 0;
+            //info = "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì§ï¿½ï¿½";
+			
         }
         else if (wParam == WM_RBUTTONDOWN)
         {
-            info = L"Êó±êÓÒ¼ü°´ÏÂ";
-            tracking = true;
+            //info = L"ï¿½ï¿½ï¿½ï¿½Ò¼ï¿½ï¿½ï¿½ï¿½ï¿½";
+            tracking = 1;
         }
         else if (wParam == WM_RBUTTONUP)
         {
-            info = L"Êó±êÓÒ¼üÌ§Æð";
-            tracking = false;
+            //info = L"ï¿½ï¿½ï¿½ï¿½Ò¼ï¿½Ì§ï¿½ï¿½";
+            tracking = 0;
+            if (trackNum != -1 && lastTrack != -1 && lastTrack < numGestures) {
+			        index = operationIndexes[lastTrack];
+			        ActionList[index]();
+            }
+                                
             trackNum = 0;
+			oldX = -1;
+			oldY = -1;
+			// wsprintf(text, "%s", Planets[index]);
+			// hdc = GetDC(hDesktop);
+			// TextOut(hdc, 300, 300, text, strlen(text));
+			// ReleaseDC(hDesktop, hdc);
         }
 
         ZeroMemory(text, sizeof(text));
         ZeroMemory(data, sizeof(data));
-        int x = p->pt.x;
-        int y = p->pt.y;
+        x = p->pt.x;
+        y = p->pt.y;
 
-        wsprintf(text, L"%s", info);
-        wsprintf(data, L"Î»ÖÃ£ºx=%d,y=%d", x, y);
-        if (tracking && trackNum != -1)
+        //wsprintf(text, "%s", info);
+        // wsprintf(data, "Î»ï¿½Ã£ï¿½x=%d,y=%d", x, y);
+        if (tracking == 1 && trackNum != -1)
         {
             // paint mouse trace
             if (oldX != -1)
             {
-                HDC hDC = GetDC(hDesktop);
-                HPEN hPen = CreatePen(PS_SOLID, 3, RGB(255, 0, 255));
-                HGDIOBJ hPenOld = SelectObject(hDC, hPen);
-                MoveToEx(hDC, oldX, oldY, NULL);
-                LineTo(hDC, x, y);
-                DeleteObject(hPen);
-                ReleaseDC(hDesktop, hDC);
-            }
+                // HDC hDC = GetDC(hDesktop);
+                // HPEN hPen = CreatePen(PS_SOLID, 3, RGB(255, 0, 255));
+                // HGDIOBJ hPenOld = SelectObject(hDC, hPen);
+                // MoveToEx(hDC, oldX, oldY, NULL);
+                // LineTo(hDC, x, y);
+                // DeleteObject(hPen);
+                // ReleaseDC(hDesktop, hDC);
 
-            if ((x - lastX)*(x - lastX) + (y - lastY)*(y - lastY) > 10000)
-            {
-                int track = judgeTrack(x - lastX, y - lastY);
-                if (track != lastTrack)
-                {
-                    tracks[trackNum] = track;
-                    lastTrack = track;
-                    trackNum++;
-                    if (trackNum > 3)
-                    {
-                        trackNum = -1; // no action
-                        lastTrack = -1;
-                    }
-                }
-                lastX = x;
-                lastY = y;
+				if ((x - lastX)*(x - lastX) + (y - lastY)*(y - lastY) > 10000)
+				{
+					track = judgeTrack(x - lastX, y - lastY);
+					if (track != lastTrack)
+					{
+						tracks[trackNum] = track;
+						lastTrack = track;
+						trackNum++;
+						if (trackNum > 3)
+						{
+							trackNum = -1; // no action
+							lastTrack = -1;
+						}
+					}
+					lastX = x;
+					lastY = y;
+				}
             }
+			else
+			{
+				lastX = x;
+				lastY = y;
+			}
+			oldX = x;
+			oldY = y;
         }
-        oldX = x;
-        oldY = y;
-        wsprintf(text, L"%d", lastTrack);
-        hdc = GetDC(hgWindow);
-        InvalidateRect(hgWindow, NULL, true);
-        UpdateWindow(hgWindow);
-        TextOut(hdc, 10, 10, text, wcslen(text));
-        TextOut(hdc, 10, 30, data, wcslen(data));
-        ReleaseDC(hgWindow, hdc);
+		
+        // wsprintf(text, "%d", lastTrack);
+        //hdc = GetDC(hgWindow);
+        //InvalidateRect(hgWindow, NULL, true);
+        //UpdateWindow(hgWindow);
+        //TextOut(hdc, 10, 30, text, strlen(text));
+        //TextOut(hdc, 10, 60, data, strlen(data));
+       // ReleaseDC(hgWindow, hdc);
     }
 
-    return CallNextHookEx(keyHook, nCode, wParam, lParam);
+    CallNextHookEx(keyHook, nCode, wParam, lParam);
+	/*if (wParam == WM_RBUTTONUP)
+		return 1;*/
+	return 0;
 }
 
 
@@ -161,20 +184,20 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 
 	if (nCode >= 0)
 	{
-		if (wParam == WM_KEYDOWN)      info = L"ÆÕÍ¨°´æIÌ§Æð";
-		else if (wParam == WM_KEYUP)        info = L"ÆÕÍ¨°´æI°´ÏÂ";
-		else if (wParam == WM_SYSKEYDOWN)   info = L"Ïµ½y°´æIÌ§Æð";
-		else if (wParam == WM_SYSKEYUP)     info = L"Ïµ½y°´æI°´ÏÂ";
+		if (wParam == WM_KEYDOWN)      info = L"ï¿½ï¿½Í¨ï¿½ï¿½ï¿½IÌ§ï¿½ï¿½";
+		else if (wParam == WM_KEYUP)        info = L"ï¿½ï¿½Í¨ï¿½ï¿½ï¿½Iï¿½ï¿½ï¿½ï¿½";
+		else if (wParam == WM_SYSKEYDOWN)   info = L"Ïµï¿½yï¿½ï¿½ï¿½IÌ§ï¿½ï¿½";
+		else if (wParam == WM_SYSKEYUP)     info = L"Ïµï¿½yï¿½ï¿½ï¿½Iï¿½ï¿½ï¿½ï¿½";
 
 		ZeroMemory(text, sizeof(text));
 		ZeroMemory(data, sizeof(data));
         //p->scanCode
-		wsprintf(text, L"%s - ¼üÅÌÂë [%04d], É¨ÃèÂë [%04d]  ", info, p->vkCode, p->scanCode);
-		wsprintf(data, L"°´¼üÂëÄ¿²âÎª£º %c  ", p->vkCode);
+		wsprintf((LPSTR)text, (LPSTR)L"%s - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ [%04d], É¨ï¿½ï¿½ï¿½ï¿½ [%04d]  ", info, p->vkCode, p->scanCode);
+		wsprintf((LPSTR)data, (LPSTR)L"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½Îªï¿½ï¿½ %c  ", p->vkCode);
 
 		hdc = GetDC(hgWindow);
-		TextOut(hdc, 10, 50, text, wcslen(text));
-		TextOut(hdc, 10, 70, data, wcslen(data));
+		TextOut(hdc, 10, 50, (LPSTR)text, wcslen(text));
+		TextOut(hdc, 10, 70, (LPSTR)data, wcslen(data));
 		ReleaseDC(hgWindow, hdc);
 	}
 
