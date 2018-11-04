@@ -39,7 +39,7 @@ selectedDetail  BYTE    "已变更操作“%s”为执行“%s”", 0
 showOperation   BYTE    "%s",0
 
 numGestures     =       8
-numOperations   =       21
+numOperations   =       20
 operationIndexes    DWORD   0, 1, 2, 3, 4, 5, 6, 7
 saveButton      DWORD   numGestures dup(?)
 hWndComboBox    DWORD   numGestures dup(?)
@@ -59,7 +59,7 @@ oldY            DWORD   -1
 ActionList      DWORD   OFFSET copy, OFFSET paste, OFFSET Win, OFFSET AltTab, OFFSET WinTab,
                         OFFSET WinD, OFFSET WinUp, OFFSET WinDown, OFFSET WinLeft, OFFSET WinRight,
                         OFFSET AltLeft, OFFSET AltRight, OFFSET mute2, OFFSET soundUp2, OFFSET soundDown2,
-                        OFFSET ControlPanel, OFFSET TaskManager, OFFSET NotePad, OFFSET Calculator, OFFSET WebSearchAuto,
+                        OFFSET ControlPanel, OFFSET TaskManager, OFFSET NotePad, OFFSET Calculator, ;OFFSET WebSearchAuto,
                         OFFSET PressKeys ; need to do the acc keys
 ; end of action list
 
@@ -92,14 +92,15 @@ Planets15       BYTE    '控制面板', 0
 Planets16       BYTE    '任务管理器', 0
 Planets17       BYTE    '记事本', 0
 Planets18       BYTE    '计算器', 0
-Planets19       BYTE    '默认浏览器中搜索', 0
-Planets20       BYTE    '自定义按键', 0
+Planets19       BYTE    '自定义按键', 0
+;Planets19       BYTE    '默认浏览器中搜索', 0
+;Planets20       BYTE    '自定义按键', 0
 
 Planets         DWORD   Planets00, Planets01, Planets02, Planets03, Planets04,
                         Planets05, Planets06, Planets07, Planets08, Planets09,
                         Planets10, Planets11, Planets12, Planets13, Planets14,
-                        Planets15, Planets16, Planets17, Planets18, Planets19,
-                        Planets20
+                        Planets15, Planets16, Planets17, Planets18, Planets19;,
+                        ;Planets20
 
 GestureNames00  BYTE    '左划', 0
 GestureNames01  BYTE    '右划', 0
